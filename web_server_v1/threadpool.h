@@ -10,7 +10,7 @@
 
 #include "mutex_lock.h"
 
-template< class T >
+template< class Function >
 class threadpool
 //This class is a thread pool working as half sync/half reactor mode.
 {
@@ -23,7 +23,7 @@ class threadpool
 		threadpool(int thread_number=8, int max_requests=16384);
 		~threadpool();
 		//add task to the queue
-		bool append(T* request);
+		bool append(Function* request);
 
 	private:
 		//this function is for thread work
@@ -33,15 +33,15 @@ class threadpool
 		int thread_number;//sum of thread in the pool
 		int max_requests;//max requests of queue
 		std::vector<pthread_t*> threads;//vector of threads
-		std::queue< T* > work_queue;//requests queue
+		std::queue< Function* > work_queue;//requests queue
 		mutex_locker queue_locker;//mutex lock protecting the queue
 		semaphore queue_status;//have task or not
 		bool stop;//stop the thread
 };
 
 
-template<class T>
-threadpool<T>::threadpool(int thread_number_,int max_requests_):
+template<class Function>
+threadpool<Function>::threadpool(int thread_number_,int max_requests_):
 	thread_number(thread_number_),max_requests(max_requests_),stop(false)
 {
 	if(thread_number_<=0 or max_requests_<=0)
@@ -62,16 +62,16 @@ threadpool<T>::threadpool(int thread_number_,int max_requests_):
 	}
 }
 		
-template<class T>
-threadpool<T>::~threadpool()
+template<class Function>
+threadpool<Function>::~threadpool()
 {
 	stop=true;
 	for(auto x:threads)
 		delete x;
 }
 
-template<class T>
-bool threadpool<T>::append(T* request)
+template<class Function>
+bool threadpool<Function>::append(Function* request)
 {
 	queue_locker.lock();
 	if(work_queue.size()>max_requests)
@@ -85,16 +85,16 @@ bool threadpool<T>::append(T* request)
 	return true;
 }
 
-template<class T>
-void* threadpool<T>::worker(void* arg)
+template<class Function>
+void* threadpool<Function>::worker(void* arg)
 {
 	threadpool* pool=(threadpool*) arg;
 	pool->run();
 	return pool;
 }
 
-template<class T>
-void threadpool<T>::run()
+template<class Function>
+void threadpool<Function>::run()
 {
 	while(!stop)
 	{
@@ -106,12 +106,12 @@ void threadpool<T>::run()
 			continue;
 		}
 		
-		T* request=work_queue.front();
+		Function* request=work_queue.front();
 		work_queue.pop();
 		queue_locker.unlock();
 		if(!request)
 			continue;
-		request->process();
+		(*request)();
 	}
 }
 #endif

@@ -59,7 +59,7 @@ class func_class
 
 	public:
 
-		void process(void)
+		void operator() ()
 		{
 			sem--;
 			temp+="task "+std::to_string(num)+": "+std::to_string(u(e))+'\t';
