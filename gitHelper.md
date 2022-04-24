@@ -13,6 +13,9 @@ Git当前状态
 ```  git status ```
 Git 添加文件
 ``` git add files ```
+Git 删除文件
+``` git rm files ```
+``` git rm -r folders ```
 保存账户密码
 ``` git config --global credential.helper store ```
 
