@@ -3,60 +3,108 @@
 
 #include <iostream>
 #include <time.h>
+#include <fstream>
+#include <string>
+#include <iomanip>
 
-class Singleton {
+class Log {
+    //usage: Log& e=Log::Instance();
+    //e.operation();
     public:
-        static Singleton& Instance() 
+        static Log& Instance() 
         {
-            std::cout<<"hello"<<std::endl;
         // Since it's a static variable, if the class has already been created,
         // it won't be created again.
         // And it **is** thread-safe in C++11.
-        static Singleton myInstance;
+        static Log myInstance;
 
         // Return a reference to our instance.
         return myInstance;
         }
 
         // delete copy and move constructors and assign operators
-        Singleton(Singleton const&) = delete;             // Copy construct
-        Singleton(Singleton&&) = delete;                  // Move construct
-        Singleton& operator=(Singleton const&) = delete;  // Copy assign
-        Singleton& operator=(Singleton &&) = delete;      // Move assign
+        Log(Log const&) = delete;             // Copy construct
+        Log(Log&&) = delete;                  // Move construct
+        Log& operator=(Log const&) = delete;  // Copy assign
+        Log& operator=(Log &&) = delete;      // Move assign
 
         // Any other public methods.
+        int d(std::string content)//debug
+        {
+            if(level>info)
+            {
+                time_now();
+                log_out<<"  Debug: "<<content<<std::endl;
+                return 1;
+            }
+            else
+                return 0;
+        };
 
-    protected:
-        Singleton() {
-            std::cout<<"hi"<<std::endl;
-            // Constructor code goes here.
+        int i(std::string content)//info
+        {
+            if(level>error)
+            {
+                time_now();
+                log_out<<"  Info: "<<content<<std::endl;
+                return 1;
+            }
+            else
+            return 0;
+        };
+
+        int e(std::string content)//error
+        {
+            time_now();
+            log_out<<"  Error: "<<content<<std::endl;
+            return 1;
         }
 
-        ~Singleton() {
+
+
+    private:
+        Log() {
+            // Constructor code goes here.
+            log_out.open("server.log",std::ios_base::app);
+            if(!log_out.is_open())
+                std::cerr<<"Could not open log file!"<<std::endl,log_out.close();
+            else
+            {   now=time(0);
+                localTime=localtime(&now);
+                log_out<<"\nServer start!\n"<<"now is ";
+                time_now(1);
+                log_out<<std::endl;
+            }
+        }
+
+        ~Log() {
             // Destructor code goes here.
+            log_out.close();
+        }
+
+        enum Level{error=0,info,debug};
+
+        void time_now(int date=0)//date=0:no year,month and day 
+        {
+            now=time(nullptr);
+            localTime=localtime(&now);
+            std::cout.imbue(std::locale("C.UTF-8"));
+            if(date)
+                log_out<<std::put_time(localTime,"%Y-%m-%d %H:%M:%S");
+            else
+                log_out<<std::put_time(localTime,"%H:%M:%S");
+            return ;
         }
 
         // And any other protected methods.
-};
+
+        private:
+                std::ofstream log_out;//日志文件输出流
+                time_t now;//时间
+                tm *localTime;//本地时间
+                Level level=debug;
 
 
-class Log:public Singleton{
-
-    public:
-        Log()
-        {
-            std::cout<<"I am created!"<<std::endl;
-        }
-
-        void call(void)
-        {
-            std::cout<<"777";
-        }
-
-        ~Log()
-        {
-            std::cout<<"I will die!"<<std::endl;
-        }
 };
 
 #endif

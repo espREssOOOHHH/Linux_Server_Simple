@@ -78,16 +78,19 @@ int main(int arg_counts, char** argv)
 {
 	if(arg_counts==1 or argv[1][0]=='m')
 	{
+		Log& log=Log::Instance();
 		pthread_t id1,id2,id3;
 		pthread_create(&id1,nullptr,functor,nullptr);
 		pthread_create(&id2,nullptr,functor2,nullptr);
 		pthread_create(&id3,nullptr,functor3,nullptr);
 
+		log.i("thread create success!");
 		pthread_join(id1,nullptr);
 		pthread_join(id2,nullptr);
 		pthread_join(id3,nullptr);
-		
-		auto p=Singleton::Instance();
+
+		log.d("shut down");
+				
 	}
 	else
 	{

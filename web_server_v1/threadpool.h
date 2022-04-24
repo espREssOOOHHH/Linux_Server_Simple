@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <iostream>
 
+#include "log.h"
 #include "mutex_lock.h"
 
 template< class Function >
@@ -37,6 +38,8 @@ class Threadpool
 		Mutex_locker queue_locker;//mutex lock protecting the queue
 		Semaphore queue_status;//have task or not
 		bool stop;//stop the thread
+
+		Log& log=Log::Instance();
 };
 
 
@@ -54,12 +57,12 @@ Threadpool<Function>::Threadpool(int thread_number_,int max_requests_):
 
 	for(pthread_t* x:threads)
 	{
-
 		if(pthread_create(x,nullptr,worker,this)!=0)
 			throw std::exception();
 		if(pthread_detach(*x))//detach this thread from main thread, return 0 when success
 			throw std::exception();
 	}
+	log.d("thread create success!");
 }
 		
 template<class Function>
@@ -82,6 +85,7 @@ bool Threadpool<Function>::append(Function* request)
 	work_queue.push(request);
 	queue_locker.unlock();
 	queue_status.signal();
+	log.d("a task successfully append to the queue");
 	return true;
 }
 
@@ -111,6 +115,7 @@ void Threadpool<Function>::run()
 		queue_locker.unlock();
 		if(!request)
 			continue;
+		log.d("a thread runs a task!");
 		(*request)();
 	}
 }
