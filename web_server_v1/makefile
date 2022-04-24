@@ -1,2 +1,2 @@
-driver: driver.cpp mutex_lock.h threadpool.h
-	g++ driver.cpp mutex_lock.h threadpool.h -o driver -pthread
+driver: driver.cpp mutex_lock.h threadpool.h log.h
+	g++ driver.cpp mutex_lock.h threadpool.h log.h -o driver -pthread

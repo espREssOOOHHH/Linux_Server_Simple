@@ -11,17 +11,17 @@
 #include "mutex_lock.h"
 
 template< class Function >
-class threadpool
+class Threadpool
 //This class is a thread pool working as half sync/half reactor mode.
 {
 	public:
-		threadpool(threadpool&)=delete;
-		threadpool& operator=(threadpool)=delete;
+		Threadpool(Threadpool&)=delete;
+		Threadpool& operator=(Threadpool)=delete;
 
 		//thread_number is the number of thread in the pool
 		//max_requests is the max number of waiting requests.
-		threadpool(int thread_number=8, int max_requests=16384);
-		~threadpool();
+		Threadpool(int thread_number=8, int max_requests=16384);
+		~Threadpool();
 		//add task to the queue
 		bool append(Function* request);
 
@@ -34,14 +34,14 @@ class threadpool
 		int max_requests;//max requests of queue
 		std::vector<pthread_t*> threads;//vector of threads
 		std::queue< Function* > work_queue;//requests queue
-		mutex_locker queue_locker;//mutex lock protecting the queue
-		semaphore queue_status;//have task or not
+		Mutex_locker queue_locker;//mutex lock protecting the queue
+		Semaphore queue_status;//have task or not
 		bool stop;//stop the thread
 };
 
 
 template<class Function>
-threadpool<Function>::threadpool(int thread_number_,int max_requests_):
+Threadpool<Function>::Threadpool(int thread_number_,int max_requests_):
 	thread_number(thread_number_),max_requests(max_requests_),stop(false)
 {
 	if(thread_number_<=0 or max_requests_<=0)
@@ -63,7 +63,7 @@ threadpool<Function>::threadpool(int thread_number_,int max_requests_):
 }
 		
 template<class Function>
-threadpool<Function>::~threadpool()
+Threadpool<Function>::~Threadpool()
 {
 	stop=true;
 	for(auto x:threads)
@@ -71,7 +71,7 @@ threadpool<Function>::~threadpool()
 }
 
 template<class Function>
-bool threadpool<Function>::append(Function* request)
+bool Threadpool<Function>::append(Function* request)
 {
 	queue_locker.lock();
 	if(work_queue.size()>max_requests)
@@ -86,15 +86,15 @@ bool threadpool<Function>::append(Function* request)
 }
 
 template<class Function>
-void* threadpool<Function>::worker(void* arg)
+void* Threadpool<Function>::worker(void* arg)
 {
-	threadpool* pool=(threadpool*) arg;
+	Threadpool* pool=(Threadpool*) arg;
 	pool->run();
 	return pool;
 }
 
 template<class Function>
-void threadpool<Function>::run()
+void Threadpool<Function>::run()
 {
 	while(!stop)
 	{

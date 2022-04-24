@@ -1,12 +1,15 @@
-#include "mutex_lock.h"
 #include <iostream>
 #include <pthread.h>
 #include <unistd.h>
 #include <random>
-#include "threadpool.h"
 #include <string>
-semaphore sem(0,1);
-//mutex_locker sem;
+
+#include "mutex_lock.h"
+#include "threadpool.h"
+#include "log.h"
+
+Semaphore sem(0,1);
+//Mutex_locker sem;
 
 const int REPEAT_TIMES=5;
 std::default_random_engine e;
@@ -83,12 +86,14 @@ int main(int arg_counts, char** argv)
 		pthread_join(id1,nullptr);
 		pthread_join(id2,nullptr);
 		pthread_join(id3,nullptr);
+		
+		auto p=Singleton::Instance();
 	}
 	else
 	{
 		func_class f1(1),f2(2),f3(3),f4(4),f5(5),f6(6);
-		threadpool<func_class> threadPool(3,10);
-		auto show=[](func_class* f,threadpool<func_class> &p){return p.append(f)?"true":"false";};
+		Threadpool<func_class> threadPool(3,10);
+		auto show=[](func_class* f,Threadpool<func_class> &p){return p.append(f)?"true":"false";};
 		std::cout<<show(&f1,threadPool)<<std::endl;
 		std::cout<<show(&f2,threadPool)<<std::endl;
 		std::cout<<show(&f3,threadPool)<<std::endl;
@@ -97,7 +102,7 @@ int main(int arg_counts, char** argv)
 		std::cout<<show(&f6,threadPool)<<std::endl;
 		sleep(1);
 		temp+='\0';
-		std::cout<<temp<<std::endl;
+		std::cout<<temp<<std::endl;		
 	}
 	
 	return 0;

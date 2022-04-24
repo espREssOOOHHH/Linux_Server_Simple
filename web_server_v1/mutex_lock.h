@@ -5,21 +5,21 @@
 #include <pthread.h>
 #include <semaphore.h>
 
-class semaphore
+class Semaphore
 //This class can be used as semaphore.
 {
 	public:
-		semaphore(semaphore&)=delete;
-		semaphore& operator=(semaphore&)=delete;
+		Semaphore(Semaphore&)=delete;
+		Semaphore& operator=(Semaphore&)=delete;
 
-		semaphore(int pshared=0,unsigned int value=0)
+		Semaphore(int pshared=0,unsigned int value=0)
 		//create a semaphore
 		{
 			if(sem_init(&m_sem,pshared,value))
 				throw std::exception();
 		}
 
-		~semaphore()
+		~Semaphore()
 		//destroy this semaphore
 		{
 			sem_destroy(&m_sem);
@@ -81,21 +81,21 @@ class semaphore
 		sem_t m_sem;
 };
 
-class mutex_locker
+class Mutex_locker
 //This class can be used as mutex lock.
 {
 	public:
-		mutex_locker(mutex_locker&)=delete;
-		mutex_locker& operator=(mutex_locker&)=delete;
+		Mutex_locker(Mutex_locker&)=delete;
+		Mutex_locker& operator=(Mutex_locker&)=delete;
 
-		mutex_locker()
+		Mutex_locker()
 		//create a mutex lock
 		{
 			if(pthread_mutex_init(&m_mutex,nullptr))
 				throw std::exception();
 		}
 		
-		~mutex_locker()
+		~Mutex_locker()
 		//destroy the mutex lock
 		{
 			pthread_mutex_destroy(&m_mutex);
@@ -166,14 +166,14 @@ class mutex_locker
 		pthread_mutex_t m_mutex;
 };
 
-class condition_var
+class Condition_var
 //This class can be used as conditional variable.
 {
 	public:
-		condition_var(condition_var&)=delete;
-		condition_var& operator=(condition_var&)=delete;
+		Condition_var(Condition_var&)=delete;
+		Condition_var& operator=(Condition_var&)=delete;
 		
-		condition_var()
+		Condition_var()
 		//create a conditional variable
 		{
 			if(pthread_mutex_init(&m_mutex,nullptr))
@@ -185,7 +185,7 @@ class condition_var
 			}
 		}
 		
-		~condition_var()
+		~Condition_var()
 		//destroy the conditional variable
 		{
 			pthread_mutex_destroy(&m_mutex);
