@@ -16,6 +16,7 @@
 #include <pthread.h>
 #include <iostream>
 #include <stdlib.h>
+#include <cstring>
 
 #include <sys/mman.h>
 
@@ -39,8 +40,9 @@ class Http_connect
         enum LINE_STATUS {LINE_OK=0,LINE_BAD,LINE_OPEN};//line reading status
 
         //other important constant
-        static int num_epollfd;//the sum of epoll file descriptor
+        static int epollfd;//epoll file descriptor
         static int num_user;//the number of users
+        static string root_dir="./";//root directory of website
 
         //important function
         Http_connect(){};
@@ -84,15 +86,15 @@ class Http_connect
         //values and pointers
         int sock_fd;//socket of this http connection
         sockaddr_in address;//socket address of this http connection(the other side)
-        char read_buffer[READ_BUFFER_SIZE];//read buffer
+        char *read_buffer;//read buffer
         int read_index;//hyper index of reading content in read_buffer
         int checked_index;//index of checking char in read_buffer
         int start_line_index;//index of resolving line
-        char write_buffer[WRITE_BUFFER_SIZE];
+        char *write_buffer;
         int write_size;//number of bytes to be sent in write buffer
         STATE_CHECK status_MainStateMachine;//main state machine status
         METHOD method;//request method
-        char m_real_file[FILENAME_LEN];//relative path of request file
+        char *filepath_buffer;//relative path of request file
         std::string url;//requested file name
         std::string http_version;//http protocal version
         std::string host_name;//host name
@@ -103,5 +105,11 @@ class Http_connect
             //these member are for writev
         struct iovec iv[2];
         int iv_count;//memory block count
+
+    protected:
+        int setnonblocking(int);//set file descriptor to nonblocking
+        void addfd(int,int,bool);//add file descriptor to epoll set
+        void removefd(int,int);//remove file descriptor from epoll set
+        void modfd(int,int,int);//modify file descriptor in epoll set
 };
 #endif
