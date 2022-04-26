@@ -79,6 +79,9 @@ class Log {
 
         ~Log() {
             // Destructor code goes here.
+            log_out<<"Server shutdown!"<<std::endl<<"final time is: ";
+            time_now(0);
+            log_out<<std::endl;
             log_out.close();
         }
 
