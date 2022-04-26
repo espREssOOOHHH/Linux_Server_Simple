@@ -17,6 +17,7 @@
 #include <iostream>
 #include <stdlib.h>
 #include <cstring>
+#include <vector>
 
 #include <sys/mman.h>
 
@@ -28,7 +29,7 @@ class Http_connect
     public:
         //proprieties and state tags
         static const int MAX_LEN_FILENAME=200;//maxium length of filename
-        static const int READ_BUFFER_SIZE=2048;//size of read buffer
+        static const int READ_BUFFER_SIZE=256;//size of read buffer
         static const int WRITE_BUFFER_SIZE=1024;//size of write buffer
         enum METHOD {GET=0,POST,HEAD,PUT,DELETE,
                     TRACE,OPTIONS,CONNECT,PATCH};//http request method
@@ -42,7 +43,7 @@ class Http_connect
         //other important constant
         static int epollfd;//epoll file descriptor
         static int num_user;//the number of users
-        static string root_dir="./";//root directory of website
+        static std::string root_dir;//root directory of website
 
         //important function
         Http_connect(){};
@@ -58,7 +59,7 @@ class Http_connect
 
         void operator()();//functor
         bool read();//non-blocking read
-        bool write();//non-blocking write
+        bool write(HTTP_CODE ret);//non-blocking write
 
     private:
         void init();//init a new connection, hidden interface
@@ -70,7 +71,7 @@ class Http_connect
         HTTP_CODE parse_headers(char* text);
         HTTP_CODE parse_content(char* text);
         HTTP_CODE do_request();
-        char* get_line() { return read_buffer+start_line_index;};
+        char* get_line() { return &read_buffer[start_line_index];};
         LINE_STATUS parse_line();
 
         //these methods called by reply();
@@ -80,26 +81,27 @@ class Http_connect
         bool add_status_line(int status,const char* title);
         bool add_headers(int content_length);
         bool add_content_length(int content_length);
-        bool add_keeping_alive();
+        bool add_keep_alive();
         bool add_blank_line();
 
         //values and pointers
         int sock_fd;//socket of this http connection
         sockaddr_in address;//socket address of this http connection(the other side)
-        char *read_buffer;//read buffer
+        std::vector<char> read_buffer;//read buffer
+        std::string read_content;//read string for process
         int read_index;//hyper index of reading content in read_buffer
         int checked_index;//index of checking char in read_buffer
         int start_line_index;//index of resolving line
-        char *write_buffer;
+        std::vector<char> write_buffer;//write buffer
         int write_size;//number of bytes to be sent in write buffer
         STATE_CHECK status_MainStateMachine;//main state machine status
         METHOD method;//request method
-        char *filepath_buffer;//relative path of request file
+        std::vector<char> filepath_buffer;//relative path of request file
         std::string url;//requested file name
         std::string http_version;//http protocal version
         std::string host_name;//host name
         int content_length_of_request;//request content length
-        bool keeping_alive;//whether keeping alive
+        bool keep_alive;//whether keep alive
         char* file_location;//requested file location in memory
         struct stat file_status;//requested file status
             //these member are for writev

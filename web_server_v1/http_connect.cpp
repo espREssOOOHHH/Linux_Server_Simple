@@ -11,6 +11,7 @@ const std::string ERROR_404_FORM="The requested file was not found on this serve
 const std::string ERROR_500_TITLE="500 Internal Error";
 const std::string ERROR_500_FORM="An error has occurred during connection to the server and that the requested page cannot be accessed.\n";
 
+std::string Http_connect::root_dir="./";
 int Http_connect::setnonblocking(int fd)
 {
     int old_option=fcntl(fd,F_GETFL);
@@ -74,7 +75,7 @@ void Http_connect::init(int sockfd, const sockaddr_in& addr)
 void Http_connect::init()
 {
     status_MainStateMachine=STATE_REQUESTLINE;
-    keeping_alive=false;
+    keep_alive=false;
 
     method=GET;
     url="";
@@ -86,15 +87,84 @@ void Http_connect::init()
     read_index=0;
     write_size=0;
 
-    read_buffer=new char[READ_BUFFER_SIZE]();
-    write_buffer=new char[WRITE_BUFFER_SIZE]();
-    filepath_buffer=new char[FILENAME_MAX]();
-    memset(read_buffer,'\0',READ_BUFFER_SIZE);
-    memset(write_buffer,'\0',WRITE_BUFFER_SIZE);
-    memset(filepath_buffer,'\0',FILENAME_MAX);
+    read_buffer.resize(READ_BUFFER_SIZE,'\0');
+    write_buffer.resize(WRITE_BUFFER_SIZE,'\0');
+    filepath_buffer.resize(FILENAME_MAX,'\0');
 }
 
 Http_connect::LINE_STATUS Http_connect::parse_line()
 {
+    while(checked_index<read_index)
+    {
+        if(read_content[checked_index]=='\r')
+            if(1==read_index-checked_index)
+                return LINE_OPEN;
+            else if(read_content[checked_index+1]=='\n')
+            {
+                read_content[checked_index++]='\0';
+                read_content[checked_index++]='\0';
+                return LINE_OK;
+            }
+            else
+                return LINE_BAD;
+        else if(read_content[checked_index]=='\n')
+            if(checked_index>1 and read_content[checked_index-1]=='\r')
+            {
+                read_content[checked_index++]='\0';
+                read_content[checked_index++]='\0';
+                return LINE_OK;
+            }
+            else
+                return LINE_BAD;
+        checked_index++;
+    }
+
+    return LINE_OPEN;
+}
+
+Http_connect::HTTP_CODE Http_connect::parse_headers(char* text)
+{
+
+}
+
+Http_connect::HTTP_CODE Http_connect::parse_content( char* text )
+{
+
+}
+
+Http_connect::HTTP_CODE Http_connect::parse_request_line(char* text)
+{
     
+}
+Http_connect::HTTP_CODE Http_connect::resolve()
+{
+
+}
+
+Http_connect::HTTP_CODE Http_connect::do_request()
+{
+
+}
+
+
+bool Http_connect::read()
+{
+    int bytes_received=0;
+    while(true)
+    {
+        read_buffer.assign(READ_BUFFER_SIZE,'\0');
+        bytes_received=recv(sock_fd,&read_buffer[0],READ_BUFFER_SIZE,0);
+
+        if(bytes_received==-1)
+        {
+            if(errno==EAGAIN or errno==EWOULDBLOCK)
+                break;
+            else
+                return false;
+        }
+        else if(!bytes_received)
+            return false;
+    }
+    read_content+=&read_buffer[0];
+    read_index+=bytes_received;
 }
