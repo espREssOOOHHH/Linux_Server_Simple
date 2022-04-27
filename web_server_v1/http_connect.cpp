@@ -296,5 +296,49 @@ void Http_connect::unmap()
 
 bool Http_connect::write()
 {
+    if(!write_size)
+    {
+        modfd(epollfd,sock_fd,EPOLLIN);
+        init();
+        return true;
+    }
+
+    int ret_val;
+    int bytes_to_be_send=write_size;
+    int bytes_already_send;
     
+    while(1)
+    {
+        ret_val=writev(sock_fd,iv,iv_count);
+        if(ret_val<=-1)//if TCP write buffer is full, wait for next EPOLLOUT event
+        {
+            if(errno=EAGAIN)
+            {
+                modfd(epollfd,sock_fd,EPOLLOUT);
+                return true;
+            }
+            unmap();
+            return false;
+        }
+
+        bytes_to_be_send-=ret_val;
+        bytes_already_send+=ret_val;
+        if(bytes_to_be_send<=bytes_already_send)
+        {
+            //send success
+            unmap();
+            if(keep_alive)
+            {
+                init();
+                modfd(epollfd,sock_fd,EPOLLIN);
+                return true;
+            }
+            else
+            {
+                modfd(epollfd,sock_fd,EPOLLIN);
+                return false;
+            }
+        }
+
+    }
 }

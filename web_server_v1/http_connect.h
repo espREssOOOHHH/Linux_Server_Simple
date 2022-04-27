@@ -5,6 +5,8 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/epoll.h>
+#include <sys/mman.h>
+#include <sys/uio.h>
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -18,8 +20,6 @@
 #include <stdlib.h>
 #include <cstring>
 #include <vector>
-
-#include <sys/mman.h>
 
 #include "mutex_lock.h"
 #include "log.h"
