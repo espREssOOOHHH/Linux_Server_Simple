@@ -12,6 +12,8 @@ const std::string ERROR_500_TITLE="500 Internal Error";
 const std::string ERROR_500_FORM="An error has occurred during connection to the server and that the requested page cannot be accessed.\n";
 
 std::string Http_connect::root_dir="./";
+
+Log &log=Log::Instance();
 int Http_connect::setnonblocking(int fd)
 {
     int old_option=fcntl(fd,F_GETFL);
@@ -122,28 +124,142 @@ Http_connect::LINE_STATUS Http_connect::parse_line()
     return LINE_OPEN;
 }
 
-Http_connect::HTTP_CODE Http_connect::parse_headers(char* text)
+Http_connect::HTTP_CODE Http_connect::parse_headers()
 {
-
-}
-
-Http_connect::HTTP_CODE Http_connect::parse_content( char* text )
-{
-
-}
-
-Http_connect::HTTP_CODE Http_connect::parse_request_line(char* text)
-{
+    if('\0'==read_content[start_line_index])//find empty line
+    {
+        if(content_length_of_request!=0)
+        {
+            status_MainStateMachine=STATE_CONTENT;
+            return NO_REQUEST;
+        }
+        else
+            return GET_REQUEST;
+    }
+    else if(read_content.find("Connection:",start_line_index)<=1)//connection head
+    {
+        start_line_index+=sizeof "Connection:";
+        if(read_content.find("keep-alive",start_line_index))
+            keep_alive=true;
+    }
+    else if(read_content.find("Content-Length:",start_line_index)<=1)
+    {
+        start_line_index+=sizeof "Content-Length";
+        content_length_of_request=atol(read_content.c_str()+start_line_index);
+    }
+    else if(read_content.find("Host:",start_line_index)<=1)
+    {
+        start_line_index+=sizeof "Host:";
+        host_name=read_content.substr(start_line_index);
+    }
+    else if(read_content.find("User-Agent:")<=1)
+    {
+        start_line_index+=sizeof "User-Agent:";
+        log.i("User-Agent:"+read_content.substr(start_line_index));
+    }
+    else
+        log.e("unknown header :"+read_content.substr(start_line_index));
     
+    return NO_REQUEST;
+}
+
+Http_connect::HTTP_CODE Http_connect::parse_content( )
+{
+    if(read_index>=content_length_of_request+checked_index)
+    {
+        read_content.resize(content_length_of_request);
+        return GET_REQUEST;
+    }
+    else
+        return NO_REQUEST;
+}
+
+Http_connect::HTTP_CODE Http_connect::parse_request_line()
+{
+    int pos=read_content.find(" ",start_line_index);
+    if(pos==std::string::npos)
+        return BAD_REQUEST;//no url
+    int pos2=read_content.find(" ",start_line_index+pos);
+    url=read_content.substr(pos+1,pos2-pos);
+
+    if(read_content.find("GET")<=1)
+        method=GET;
+    else if(read_content.find("POST")<=1)
+        {method=POST;return BAD_REQUEST;}
+    else
+        return BAD_REQUEST;
+
+    http_version=read_content.substr(0,pos);
+    if(pos<=1)
+        return BAD_REQUEST;
+    if(http_version!="HTTP/1.1")
+        return BAD_REQUEST;
+    if(url.find("http:/")==0)
+        url=url.substr(sizeof "http:/");
+    if(url.length()<1)
+        return BAD_REQUEST;
+    status_MainStateMachine=STATE_HEADER;
+    return NO_REQUEST;
 }
 Http_connect::HTTP_CODE Http_connect::resolve()
 {
+    LINE_STATUS line_status=LINE_OK;
+    HTTP_CODE ret=NO_REQUEST;
 
+    while(
+        (status_MainStateMachine==STATE_CONTENT and line_status==LINE_OK)
+        or (line_status=parse_line())==LINE_OK)
+    {
+        start_line_index=checked_index;
+        log.i("got 1 http line: "+std::string(read_content.begin()+start_line_index,read_content.end()));
+
+        switch(status_MainStateMachine)
+        {
+            case STATE_REQUESTLINE:
+            {
+                if(parse_request_line()==BAD_REQUEST)
+                    return BAD_REQUEST;
+                break;
+            }
+            case STATE_HEADER:
+            {
+                ret==parse_headers();
+                if(BAD_REQUEST==ret)
+                    return BAD_REQUEST;
+                else if(GET_REQUEST==ret)
+                    return do_request();
+
+                break;
+            }
+            case STATE_CONTENT:
+            {
+                if(parse_content()==GET_REQUEST)
+                    return do_request();
+                line_status=LINE_OPEN;
+                break;
+            }
+            default:
+                return INTERNAL_ERROR;
+        }
+    }
+    return NO_REQUEST;
 }
 
 Http_connect::HTTP_CODE Http_connect::do_request()
 {
-
+    std::string temp=root_dir+url;
+    filepath_buffer.assign(temp.begin(),temp.end());
+    if(stat(&filepath_buffer[0],&file_status)<0)
+        return NO_RESOURCE;
+    if(!(file_status.st_mode & S_IROTH))
+        return FOBBIDEN_REQUEST;
+    if(S_ISDIR(file_status.st_mode))
+        return BAD_REQUEST;
+    
+    int fd=open(&filepath_buffer[0],O_RDONLY);
+    file_location=(char*)mmap(0,file_status.st_size,PROT_READ,MAP_PRIVATE,fd,0);
+    close(fd);
+    return FILE_REQUEST;
 }
 
 
@@ -167,4 +283,18 @@ bool Http_connect::read()
     }
     read_content+=&read_buffer[0];
     read_index+=bytes_received;
+}
+
+void Http_connect::unmap()
+{
+    if(file_location)
+    {
+        munmap( file_location, file_status.st_size );
+        file_location = 0;
+    }
+}
+
+bool Http_connect::write()
+{
+    
 }

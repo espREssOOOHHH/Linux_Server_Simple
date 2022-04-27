@@ -59,19 +59,19 @@ class Http_connect
 
         void operator()();//functor
         bool read();//non-blocking read
-        bool write(HTTP_CODE ret);//non-blocking write
+        bool write();//non-blocking write
 
     private:
         void init();//init a new connection, hidden interface
-        HTTP_CODE resolve();//resolve http request
-        HTTP_CODE reply();//reply http request
+        HTTP_CODE resolve();//resolve http request,main state machine
+        HTTP_CODE reply(HTTP_CODE ret);//reply http request
 
         //these methods called by resolve();
-        HTTP_CODE parse_request_line(char* text);
-        HTTP_CODE parse_headers(char* text);
-        HTTP_CODE parse_content(char* text);
+        HTTP_CODE parse_request_line();
+        HTTP_CODE parse_headers();
+        HTTP_CODE parse_content();
         HTTP_CODE do_request();
-        char* get_line() { return &read_buffer[start_line_index];};
+        //std::string::const_iterator get_line() { return read_content.begin()+start_line_index;};
         LINE_STATUS parse_line();
 
         //these methods called by reply();
