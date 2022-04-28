@@ -36,7 +36,7 @@ class Http_connect
         enum STATE_CHECK {STATE_REQUESTLINE=0,STATE_HEADER,
                     STATE_CONTENT};//states of main state machine
         enum HTTP_CODE {NO_REQUEST=0,GET_REQUEST,BAD_REQUEST,
-                    NO_RESOURCE,FOBBIDEN_REQUEST,FILE_REQUEST,
+                    NO_RESOURCE,FORBIDDEN_REQUEST,FILE_REQUEST,
                     INTERNAL_ERROR,CLOSED_CONNECTION};//results for processing http request
         enum LINE_STATUS {LINE_OK=0,LINE_BAD,LINE_OPEN};//line reading status
 
@@ -64,7 +64,7 @@ class Http_connect
     private:
         void init();//init a new connection, hidden interface
         HTTP_CODE resolve();//resolve http request,main state machine
-        HTTP_CODE reply(HTTP_CODE ret);//reply http request
+        bool reply(HTTP_CODE ret);//reply http request
 
         //these methods called by resolve();
         HTTP_CODE parse_request_line();
@@ -76,9 +76,9 @@ class Http_connect
 
         //these methods called by reply();
         void unmap();
-        bool add_response(const char* format,...);
-        bool add_content(const char* content);
-        bool add_status_line(int status,const char* title);
+        bool add_response(const std::string);
+        bool add_content(const std::string);
+        bool add_status_line(const std::string status,const std::string title);
         bool add_headers(int content_length);
         bool add_content_length(int content_length);
         bool add_keep_alive();

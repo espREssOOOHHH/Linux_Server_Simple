@@ -2,6 +2,7 @@
 
 //status string
 const std::string OK_200_TITLE="200 OK";
+const std::string OK_200_FORM="<html><body></body></html>";
 const std::string ERROR_400_TITLE="400 Bad Request";
 const std::string ERROR_400_FORM="The server cannot or will not process the request due to something that is perceived to be a client error\n";
 const std::string ERROR_403_TITLE="403 Forbidden";
@@ -252,7 +253,7 @@ Http_connect::HTTP_CODE Http_connect::do_request()
     if(stat(&filepath_buffer[0],&file_status)<0)
         return NO_RESOURCE;
     if(!(file_status.st_mode & S_IROTH))
-        return FOBBIDEN_REQUEST;
+        return FORBIDDEN_REQUEST;
     if(S_ISDIR(file_status.st_mode))
         return BAD_REQUEST;
     
@@ -341,4 +342,129 @@ bool Http_connect::write()
         }
 
     }
+}
+
+bool Http_connect::add_response(const std::string content)
+{
+    if(write_size>=WRITE_BUFFER_SIZE or content.size()+write_size>=WRITE_BUFFER_SIZE)
+        return false;
+    
+    copy(content.begin(),content.end(),write_buffer.begin()+write_size);
+    return true;
+}
+
+bool Http_connect::add_status_line(const std::string status,const std::string title)
+{
+    return add_response("HTTP/1.1 "+status+" "+title+"\r\n");
+}
+
+bool Http_connect::add_headers(int length)
+{
+    add_content_length(length);
+    add_keep_alive();
+    add_blank_line();
+    return true;
+}
+
+bool Http_connect::add_content_length(int length)
+{
+    return add_response("Content-Length: "+std::to_string(length)+"\r\n");
+}
+
+bool Http_connect::add_keep_alive()
+{
+    return add_response("Connection: "+(keep_alive)?"keep-alive":"close");
+}
+
+bool Http_connect::add_blank_line()
+{
+    return add_response("\r\n");
+}
+
+bool Http_connect::add_content(const std::string content)
+{
+    return add_response(content);
+}
+
+bool Http_connect::reply(HTTP_CODE ret)
+{
+    auto operation=[this](std::string num,std::string title,std::string form){
+        this->add_status_line(num,title);
+        this->add_headers(form.length());
+        if(!this->add_content(form))
+            return false;
+        return true;
+    };
+    switch(ret)
+    {
+        case INTERNAL_ERROR:
+        {
+            if(!operation(std::string("500"),ERROR_500_TITLE,ERROR_500_FORM))
+                return false;
+            break;
+        }
+        case BAD_REQUEST:
+        {
+            if(!operation(std::string("400"),ERROR_400_TITLE,ERROR_400_FORM))
+                return false;
+            break;
+        }
+        case NO_RESOURCE:
+        {
+            if(!operation(std::string("404"),ERROR_404_TITLE,ERROR_404_FORM))
+                return false;
+            break;
+
+        }
+        case FORBIDDEN_REQUEST:
+        {
+            if(!operation(std::string("403"),ERROR_403_TITLE,ERROR_403_FORM))
+                return false;
+            break;
+        }
+        case FILE_REQUEST:
+        {
+            add_status_line("200",OK_200_TITLE);
+            if(file_status.st_size)
+            {
+                add_headers(file_status.st_size);
+                iv[0].iov_base=&write_buffer[0];
+                iv[0].iov_len=write_size;
+                iv[1].iov_base=file_location;
+                iv[1].iov_len=file_status.st_size;
+                iv_count=2;
+                return true;
+            }
+            else
+            {
+                add_headers(OK_200_FORM.length());
+                if(!add_content(OK_200_FORM));
+                    return false;
+            }
+        }
+        default:
+            return false;
+    }
+
+    iv[0].iov_base=&write_buffer[0];
+    iv[0].iov_len=write_size;
+    iv_count=1;
+    return true;
+}
+
+void Http_connect::operator()()
+{
+    const auto return_val=resolve();
+    if(NO_REQUEST==return_val)
+    {
+        modfd(epollfd,sock_fd,EPOLLIN);
+        return ;
+    }
+
+    if(!reply(return_val))
+    {
+        close();
+    }
+
+    modfd(epollfd,sock_fd,EPOLLOUT);
 }
