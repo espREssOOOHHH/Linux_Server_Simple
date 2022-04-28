@@ -18,7 +18,6 @@
 #include <pthread.h>
 #include <iostream>
 #include <stdlib.h>
-#include <cstring>
 #include <vector>
 
 #include "mutex_lock.h"
@@ -60,6 +59,12 @@ class Http_connect
         void operator()();//functor
         bool read();//non-blocking read
         bool write();//non-blocking write
+
+        void addfd(int,int,bool);//add file descriptor to epoll set
+        void removefd(int,int);//remove file descriptor from epoll set
+
+        void reply_internal_server_busy(int);//tell server cannot response
+ 
 
     private:
         void init();//init a new connection, hidden interface
@@ -107,11 +112,10 @@ class Http_connect
             //these member are for writev
         struct iovec iv[2];
         int iv_count;//memory block count
+        Log &log=Log::Instance();
 
     protected:
         int setnonblocking(int);//set file descriptor to nonblocking
-        void addfd(int,int,bool);//add file descriptor to epoll set
-        void removefd(int,int);//remove file descriptor from epoll set
         void modfd(int,int,int);//modify file descriptor in epoll set
 };
 #endif

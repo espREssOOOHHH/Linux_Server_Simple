@@ -14,7 +14,6 @@ const std::string ERROR_500_FORM="An error has occurred during connection to the
 
 std::string Http_connect::root_dir="./";
 
-Log &log=Log::Instance();
 int Http_connect::setnonblocking(int fd)
 {
     int old_option=fcntl(fd,F_GETFL);
@@ -71,7 +70,7 @@ void Http_connect::init(int sockfd, const sockaddr_in& addr)
 
     addfd(epollfd,sockfd,true);
     num_user++;
-
+    log.d("init a http connection");
     init();
 }
 
@@ -284,6 +283,7 @@ bool Http_connect::read()
     }
     read_content+=&read_buffer[0];
     read_index+=bytes_received;
+    return true;
 }
 
 void Http_connect::unmap()
@@ -386,6 +386,16 @@ bool Http_connect::add_content(const std::string content)
     return add_response(content);
 }
 
+void Http_connect::reply_internal_server_busy(int connfd)
+{
+    log.e("error 500 : Internal server busy");
+    std::string info="HTTP/1.1 500 "+ERROR_500_TITLE+"\r\n";
+    info+="Content-Length: "+std::to_string(ERROR_500_FORM.length());+"\r\n";
+    info+=ERROR_500_FORM;
+    send(connfd,info,info.size(),0);
+    close(connfd);
+
+}
 bool Http_connect::reply(HTTP_CODE ret)
 {
     auto operation=[this](std::string num,std::string title,std::string form){
@@ -399,18 +409,21 @@ bool Http_connect::reply(HTTP_CODE ret)
     {
         case INTERNAL_ERROR:
         {
+            log.i("http code 500 : Internal error");
             if(!operation(std::string("500"),ERROR_500_TITLE,ERROR_500_FORM))
                 return false;
             break;
         }
         case BAD_REQUEST:
         {
+            log.i("http code 400 : Bad request");
             if(!operation(std::string("400"),ERROR_400_TITLE,ERROR_400_FORM))
                 return false;
             break;
         }
         case NO_RESOURCE:
         {
+            log.i("http code 404 : Not found");
             if(!operation(std::string("404"),ERROR_404_TITLE,ERROR_404_FORM))
                 return false;
             break;
@@ -418,15 +431,18 @@ bool Http_connect::reply(HTTP_CODE ret)
         }
         case FORBIDDEN_REQUEST:
         {
+            log.i("http code 403 : Request forbidden");
             if(!operation(std::string("403"),ERROR_403_TITLE,ERROR_403_FORM))
                 return false;
             break;
         }
         case FILE_REQUEST:
         {
+            log.i("http code 200 : OK");
             add_status_line("200",OK_200_TITLE);
             if(file_status.st_size)
             {
+                log.d("web document founded");
                 add_headers(file_status.st_size);
                 iv[0].iov_base=&write_buffer[0];
                 iv[0].iov_len=write_size;
@@ -437,6 +453,7 @@ bool Http_connect::reply(HTTP_CODE ret)
             }
             else
             {
+                log.d("web document not found");
                 add_headers(OK_200_FORM.length());
                 if(!add_content(OK_200_FORM));
                     return false;
@@ -454,17 +471,21 @@ bool Http_connect::reply(HTTP_CODE ret)
 
 void Http_connect::operator()()
 {
+    log.d("start resolve");
     const auto return_val=resolve();
     if(NO_REQUEST==return_val)
     {
+        log.d("no request");
         modfd(epollfd,sock_fd,EPOLLIN);
         return ;
     }
 
     if(!reply(return_val))
     {
+        log.d("reply not success");
         close();
     }
 
+    log.d("reply success");
     modfd(epollfd,sock_fd,EPOLLOUT);
 }

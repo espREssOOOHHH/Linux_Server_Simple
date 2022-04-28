@@ -58,9 +58,9 @@ Threadpool<Function>::Threadpool(int thread_number_,int max_requests_):
 	for(pthread_t* x:threads)
 	{
 		if(pthread_create(x,nullptr,worker,this)!=0)
-			throw std::exception();
+			log.e("thread create error!"),throw std::exception();
 		if(pthread_detach(*x))//detach this thread from main thread, return 0 when success
-			throw std::exception();
+			log.e("thread detach error!"),throw std::exception();
 	}
 	log.d("thread create success!");
 }
