@@ -1,15 +1,15 @@
 #include "http_connect.h"
 
 //status string
-const std::string OK_200_TITLE="200 OK";
+const std::string OK_200_TITLE="OK";
 const std::string OK_200_FORM="<html><body></body></html>";
-const std::string ERROR_400_TITLE="400 Bad Request";
+const std::string ERROR_400_TITLE="Bad Request";
 const std::string ERROR_400_FORM="The server cannot or will not process the request due to something that is perceived to be a client error\n";
-const std::string ERROR_403_TITLE="403 Forbidden";
+const std::string ERROR_403_TITLE="Forbidden";
 const std::string ERROR_403_FORM="The server understood the request, but will not fulfill it.\n";
-const std::string ERROR_404_TITLE="404 Not Found";
+const std::string ERROR_404_TITLE="Not Found";
 const std::string ERROR_404_FORM="The requested file was not found on this server\n";
-const std::string ERROR_500_TITLE="500 Internal Error";
+const std::string ERROR_500_TITLE="Server Internal Error";
 const std::string ERROR_500_FORM="An error has occurred during connection to the server and that the requested page cannot be accessed.\n";
 
 std::string Http_connect::root_dir="./";
@@ -96,6 +96,7 @@ void Http_connect::init()
 
 Http_connect::LINE_STATUS Http_connect::parse_line()
 {
+
     while(checked_index<read_index)
     {
         if(read_content[checked_index]=='\r')
@@ -205,13 +206,13 @@ Http_connect::HTTP_CODE Http_connect::resolve()
 {
     LINE_STATUS line_status=LINE_OK;
     HTTP_CODE ret=NO_REQUEST;
-
+    log.d("Http_connect::resolve() status_MainStateMachine="+std::to_string(status_MainStateMachine));
     while(
         (status_MainStateMachine==STATE_CONTENT and line_status==LINE_OK)
-        or (line_status=parse_line())==LINE_OK)
+        or (line_status=parse_line())==LINE_OK )
     {
         start_line_index=checked_index;
-        log.i("got 1 http line: "+std::string(read_content.begin()+start_line_index,read_content.end()));
+        log.i("got 1 http line");
 
         switch(status_MainStateMachine)
         {
@@ -271,6 +272,7 @@ bool Http_connect::read()
         read_buffer.assign(READ_BUFFER_SIZE,'\0');
         bytes_received=recv(sock_fd,&read_buffer[0],READ_BUFFER_SIZE,0);
 
+        log.d("Http_connect::read() received "+std::to_string(bytes_received)+" bytes");
         if(bytes_received==-1)
         {
             if(errno==EAGAIN or errno==EWOULDBLOCK)
@@ -280,9 +282,10 @@ bool Http_connect::read()
         }
         else if(!bytes_received)
             return false;
+
+        read_content+=&read_buffer[0];
+        read_index+=bytes_received;
     }
-    read_content+=&read_buffer[0];
-    read_index+=bytes_received;
     return true;
 }
 
@@ -297,6 +300,7 @@ void Http_connect::unmap()
 
 bool Http_connect::write()
 {
+    log.d("Http_connect::write() write_size="+std::to_string(write_size));
     if(!write_size)
     {
         modfd(epollfd,sock_fd,EPOLLIN);
@@ -321,7 +325,7 @@ bool Http_connect::write()
             unmap();
             return false;
         }
-
+        log.d("Http_connect::write() write_size="+std::to_string(write_size));
         bytes_to_be_send-=ret_val;
         bytes_already_send+=ret_val;
         if(bytes_to_be_send<=bytes_already_send)
@@ -350,6 +354,8 @@ bool Http_connect::add_response(const std::string content)
         return false;
     
     copy(content.begin(),content.end(),write_buffer.begin()+write_size);
+    write_size+=content.length();
+    log.d("Http_connect::add_response write_size="+std::to_string(write_size));
     return true;
 }
 
@@ -392,7 +398,7 @@ void Http_connect::reply_internal_server_busy(int connfd)
     std::string info="HTTP/1.1 500 "+ERROR_500_TITLE+"\r\n";
     info+="Content-Length: "+std::to_string(ERROR_500_FORM.length());+"\r\n";
     info+=ERROR_500_FORM;
-    send(connfd,info,info.size(),0);
+    send(connfd,info.c_str(),info.size(),0);
     close(connfd);
 
 }
@@ -477,7 +483,7 @@ void Http_connect::operator()()
     {
         log.d("no request");
         modfd(epollfd,sock_fd,EPOLLIN);
-        return ;
+        return;
     }
 
     if(!reply(return_val))
