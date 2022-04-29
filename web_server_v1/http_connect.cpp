@@ -127,8 +127,11 @@ Http_connect::LINE_STATUS Http_connect::parse_line()
 
 Http_connect::HTTP_CODE Http_connect::parse_headers()
 {
-    if('\0'==read_content[start_line_index])//find empty line
+    log.d("Http_connect::parse_headers() startLineIndex="+std::to_string(start_line_index)+read_content[start_line_index]);
+    if('\0'==read_content[start_line_index] or start_line_index==read_content.length())//find empty line
     {
+        if(method==GET)
+            return GET_REQUEST;
         if(content_length_of_request!=0)
         {
             status_MainStateMachine=STATE_CONTENT;
@@ -137,30 +140,33 @@ Http_connect::HTTP_CODE Http_connect::parse_headers()
         else
             return GET_REQUEST;
     }
-    else if(read_content.find("Connection:",start_line_index)<=1)//connection head
+    else if(read_content.find("Connection:",start_line_index)-start_line_index<=1)//connection head
     {
         start_line_index+=sizeof "Connection:";
         if(read_content.find("keep-alive",start_line_index))
             keep_alive=true;
+        log.d("Http_connect::parse_headers connection: "+std::to_string(keep_alive));
     }
-    else if(read_content.find("Content-Length:",start_line_index)<=1)
+    else if(read_content.find("Content-Length:",start_line_index)-start_line_index<=1)
     {
         start_line_index+=sizeof "Content-Length";
         content_length_of_request=atol(read_content.c_str()+start_line_index);
+        log.d("Http_connect::parse_headers Content-Length: "+std::to_string(content_length_of_request));
     }
-    else if(read_content.find("Host:",start_line_index)<=1)
+    else if(read_content.find("Host:",start_line_index)-start_line_index<=1)
     {
         start_line_index+=sizeof "Host:";
-        host_name=read_content.substr(start_line_index);
+        host_name=read_content.substr(start_line_index,read_content.find('\0',start_line_index)-start_line_index);
+        log.d("Http_connect::parse_headers Host: "+host_name);
     }
-    else if(read_content.find("User-Agent:")<=1)
+    else if(read_content.find("User-Agent:")-start_line_index<=1)
     {
         start_line_index+=sizeof "User-Agent:";
-        log.i("User-Agent:"+read_content.substr(start_line_index));
+        log.i("User-Agent:"+read_content.substr(start_line_index,read_content.find('\0',start_line_index)-start_line_index));
     }
     else
-        log.e("unknown header :"+read_content.substr(start_line_index));
-    
+        log.i("unknown header :"+read_content.substr(start_line_index,read_content.find('\0',start_line_index)-start_line_index));
+        
     return NO_REQUEST;
 }
 
@@ -177,12 +183,13 @@ Http_connect::HTTP_CODE Http_connect::parse_content( )
 
 Http_connect::HTTP_CODE Http_connect::parse_request_line()
 {
-    int pos=read_content.find(" ",start_line_index);
+    int pos=read_content.find(' ',start_line_index);
     if(pos==std::string::npos)
         return BAD_REQUEST;//no url
-    int pos2=read_content.find(" ",start_line_index+pos);
+    int pos2=read_content.find(' ',start_line_index+pos+1);
     url=read_content.substr(pos+1,pos2-pos);
 
+    log.d("Http_connect::parse_request_line: url="+url);
     if(read_content.find("GET")<=1)
         method=GET;
     else if(read_content.find("POST")<=1)
@@ -190,11 +197,11 @@ Http_connect::HTTP_CODE Http_connect::parse_request_line()
     else
         return BAD_REQUEST;
 
-    http_version=read_content.substr(0,pos);
-    if(pos<=1)
+    if(read_content.find("HTTP/1.1")==std::string::npos)
         return BAD_REQUEST;
-    if(http_version!="HTTP/1.1")
-        return BAD_REQUEST;
+    else
+        http_version="HTTP/1.1";
+
     if(url.find("http:/")==0)
         url=url.substr(sizeof "http:/");
     if(url.length()<1)
@@ -211,7 +218,7 @@ Http_connect::HTTP_CODE Http_connect::resolve()
         (status_MainStateMachine==STATE_CONTENT and line_status==LINE_OK)
         or (line_status=parse_line())==LINE_OK )
     {
-        start_line_index=checked_index;
+
         log.i("got 1 http line");
 
         switch(status_MainStateMachine)
@@ -229,7 +236,6 @@ Http_connect::HTTP_CODE Http_connect::resolve()
                     return BAD_REQUEST;
                 else if(GET_REQUEST==ret)
                     return do_request();
-
                 break;
             }
             case STATE_CONTENT:
@@ -242,7 +248,9 @@ Http_connect::HTTP_CODE Http_connect::resolve()
             default:
                 return INTERNAL_ERROR;
         }
+        start_line_index=checked_index;
     }
+    log.d("main status="+std::to_string(status_MainStateMachine)+" line_status="+std::to_string(line_status));
     return NO_REQUEST;
 }
 

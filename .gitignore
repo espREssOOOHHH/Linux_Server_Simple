@@ -5,6 +5,7 @@
 /web_server_v0.1/webserver
 /web_server_v1/webserver
 **/driver
+**/AtomServer
 t.cpp
 *.txt
 *.h.gch
