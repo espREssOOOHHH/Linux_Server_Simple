@@ -232,6 +232,7 @@ Http_connect::HTTP_CODE Http_connect::resolve()
             case STATE_HEADER:
             {
                 ret==parse_headers();
+                log.d("Http_connect::resolve() ret=="+std::to_string(ret));
                 if(BAD_REQUEST==ret)
                     return BAD_REQUEST;
                 else if(GET_REQUEST==ret)
