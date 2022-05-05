@@ -15,10 +15,12 @@
 #include <sys/stat.h>
 
 #include <string>
+#include <string.h>
 #include <pthread.h>
 #include <iostream>
 #include <stdlib.h>
 #include <vector>
+#include <errno.h>
 
 #include "mutex_lock.h"
 #include "log.h"
@@ -101,7 +103,7 @@ class Http_connect
         int write_size;//number of bytes to be sent in write buffer
         STATE_CHECK status_MainStateMachine;//main state machine status
         METHOD method;//request method
-        std::vector<char> filepath_buffer;//relative path of request file
+        //std::vector<char> filepath_buffer;//relative path of request file
         std::string url;//requested file name
         std::string http_version;//http protocal version
         std::string host_name;//host name

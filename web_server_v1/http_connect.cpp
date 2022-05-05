@@ -12,7 +12,7 @@ const std::string ERROR_404_FORM="The requested file was not found on this serve
 const std::string ERROR_500_TITLE="Server Internal Error";
 const std::string ERROR_500_FORM="An error has occurred during connection to the server and that the requested page cannot be accessed.\n";
 
-std::string Http_connect::root_dir="./";
+std::string Http_connect::root_dir="/mnt/c/Users/Lee/OneDrive/Work/2021-2022/毕业设计/codes/web_server_v1";
 
 int Http_connect::setnonblocking(int fd)
 {
@@ -35,7 +35,7 @@ void Http_connect::addfd(int epollfd,int fd,bool one_shot)
 
 void Http_connect::removefd(int epollfd,int fd)
 {
-    epoll_ctl(epollfd,EPOLL_CTL_DEL,fd,0);
+    epoll_ctl(epollfd,EPOLL_CTL_DEL,fd,0); 
     close(fd);
 }
 
@@ -91,44 +91,39 @@ void Http_connect::init()
 
     read_buffer.resize(READ_BUFFER_SIZE,'\0');
     write_buffer.resize(WRITE_BUFFER_SIZE,'\0');
-    filepath_buffer.resize(FILENAME_MAX,'\0');
+    //filepath_buffer.resize(FILENAME_MAX,'\0');
 }
 
 Http_connect::LINE_STATUS Http_connect::parse_line()
 {
-
-    while(checked_index<read_index)
+    if(checked_index<read_index)
     {
-        if(read_content[checked_index]=='\r')
-            if(1==read_index-checked_index)
-                return LINE_OPEN;
-            else if(read_content[checked_index+1]=='\n')
-            {
-                read_content[checked_index++]='\0';
-                read_content[checked_index++]='\0';
-                return LINE_OK;
-            }
-            else
-                return LINE_BAD;
-        else if(read_content[checked_index]=='\n')
-            if(checked_index>1 and read_content[checked_index-1]=='\r')
-            {
-                read_content[checked_index++]='\0';
-                read_content[checked_index++]='\0';
-                return LINE_OK;
-            }
-            else
-                return LINE_BAD;
-        checked_index++;
+        int pos=read_content.find("\r\n",checked_index);
+        if(pos>=checked_index)
+        {
+            checked_index=pos+2;
+            return LINE_OK;
+        }
+        pos=read_content.find('\r',checked_index);
+        if(pos>=checked_index)
+            return LINE_BAD;
+        pos=read_content.find('\n',checked_index);
+        if(pos>=checked_index)
+            return LINE_BAD;
+        checked_index=read_index;
     }
 
     return LINE_OPEN;
+
 }
 
 Http_connect::HTTP_CODE Http_connect::parse_headers()
 {
     log.d("Http_connect::parse_headers() startLineIndex="+std::to_string(start_line_index)+read_content[start_line_index]);
-    if('\0'==read_content[start_line_index] or start_line_index==read_content.length())//find empty line
+    log.d("read_content length="+std::to_string(read_content.length()));
+
+    //if('\0'==read_content[start_line_index] or start_line_index==read_content.length())//find empty line
+    if(read_content.find("\r\n",start_line_index)<=start_line_index+1)
     {
         if(method==GET)
             return GET_REQUEST;
@@ -143,7 +138,7 @@ Http_connect::HTTP_CODE Http_connect::parse_headers()
     else if(read_content.find("Connection:",start_line_index)-start_line_index<=1)//connection head
     {
         start_line_index+=sizeof "Connection:";
-        if(read_content.find("keep-alive",start_line_index))
+        if(std::string::npos!=read_content.find("keep-alive",start_line_index))
             keep_alive=true;
         log.d("Http_connect::parse_headers connection: "+std::to_string(keep_alive));
     }
@@ -156,16 +151,16 @@ Http_connect::HTTP_CODE Http_connect::parse_headers()
     else if(read_content.find("Host:",start_line_index)-start_line_index<=1)
     {
         start_line_index+=sizeof "Host:";
-        host_name=read_content.substr(start_line_index,read_content.find('\0',start_line_index)-start_line_index);
+        host_name=read_content.substr(start_line_index,read_content.find("\r\n",start_line_index)-start_line_index);
         log.d("Http_connect::parse_headers Host: "+host_name);
     }
     else if(read_content.find("User-Agent:")-start_line_index<=1)
     {
         start_line_index+=sizeof "User-Agent:";
-        log.i("User-Agent:"+read_content.substr(start_line_index,read_content.find('\0',start_line_index)-start_line_index));
+        log.d("User-Agent:"+read_content.substr(start_line_index,read_content.find("\r\n",start_line_index)-start_line_index));
     }
     else
-        log.i("unknown header :"+read_content.substr(start_line_index,read_content.find('\0',start_line_index)-start_line_index));
+        log.d("unknown header :"+read_content.substr(start_line_index,read_content.find("\r\n",start_line_index)-start_line_index));
         
     return NO_REQUEST;
 }
@@ -187,17 +182,18 @@ Http_connect::HTTP_CODE Http_connect::parse_request_line()
     if(pos==std::string::npos)
         return BAD_REQUEST;//no url
     int pos2=read_content.find(' ',start_line_index+pos+1);
-    url=read_content.substr(pos+1,pos2-pos);
+    url=read_content.substr(pos+1,pos2-pos-1);
+
 
     log.d("Http_connect::parse_request_line: url="+url);
-    if(read_content.find("GET")<=1)
+    if(read_content.find("GET",start_line_index)<=start_line_index+1)
         method=GET;
-    else if(read_content.find("POST")<=1)
+    else if(read_content.find("POST",start_line_index)<=start_line_index+1)
         {method=POST;return BAD_REQUEST;}
     else
         return BAD_REQUEST;
 
-    if(read_content.find("HTTP/1.1")==std::string::npos)
+    if(read_content.find("HTTP/1.1",start_line_index)==std::string::npos)
         return BAD_REQUEST;
     else
         http_version="HTTP/1.1";
@@ -209,18 +205,20 @@ Http_connect::HTTP_CODE Http_connect::parse_request_line()
     status_MainStateMachine=STATE_HEADER;
     return NO_REQUEST;
 }
+
 Http_connect::HTTP_CODE Http_connect::resolve()
 {
     LINE_STATUS line_status=LINE_OK;
     HTTP_CODE ret=NO_REQUEST;
     log.d("Http_connect::resolve() status_MainStateMachine="+std::to_string(status_MainStateMachine));
     while(
-        (status_MainStateMachine==STATE_CONTENT and line_status==LINE_OK)
-        or (line_status=parse_line())==LINE_OK )
+        //(status_MainStateMachine==STATE_CONTENT and line_status==LINE_OK)
+        //or (line_status=parse_line())==LINE_OK )
+        line_status==LINE_OK)
     {
-
         log.i("got 1 http line");
-
+        start_line_index=checked_index;
+        line_status=parse_line();
         switch(status_MainStateMachine)
         {
             case STATE_REQUESTLINE:
@@ -231,8 +229,8 @@ Http_connect::HTTP_CODE Http_connect::resolve()
             }
             case STATE_HEADER:
             {
-                ret==parse_headers();
-                log.d("Http_connect::resolve() ret=="+std::to_string(ret));
+                ret=parse_headers();
+                log.d("Http_connect::resolve() ret="+std::to_string(ret));
                 if(BAD_REQUEST==ret)
                     return BAD_REQUEST;
                 else if(GET_REQUEST==ret)
@@ -249,26 +247,26 @@ Http_connect::HTTP_CODE Http_connect::resolve()
             default:
                 return INTERNAL_ERROR;
         }
-        start_line_index=checked_index;
     }
-    log.d("main status="+std::to_string(status_MainStateMachine)+" line_status="+std::to_string(line_status));
     return NO_REQUEST;
 }
 
 Http_connect::HTTP_CODE Http_connect::do_request()
 {
     std::string temp=root_dir+url;
-    filepath_buffer.assign(temp.begin(),temp.end());
-    if(stat(&filepath_buffer[0],&file_status)<0)
-        return NO_RESOURCE;
+    log.d("Http_connect::do_request filepath="+temp);
+
+    if(stat(temp.c_str(),&file_status)==-1)
+       return NO_RESOURCE;
     if(!(file_status.st_mode & S_IROTH))
         return FORBIDDEN_REQUEST;
     if(S_ISDIR(file_status.st_mode))
         return BAD_REQUEST;
-    
-    int fd=open(&filepath_buffer[0],O_RDONLY);
-    file_location=(char*)mmap(0,file_status.st_size,PROT_READ,MAP_PRIVATE,fd,0);
-    close(fd);
+
+    int fd=open(temp.c_str(),O_RDONLY);
+    file_location=(char*)mmap(nullptr,file_status.st_size,PROT_READ,MAP_PRIVATE,fd,0);
+    //close(fd);
+
     return FILE_REQUEST;
 }
 
@@ -487,7 +485,7 @@ bool Http_connect::reply(HTTP_CODE ret)
 void Http_connect::operator()()
 {
     log.d("start resolve");
-    const auto return_val=resolve();
+    auto return_val=resolve();
     if(NO_REQUEST==return_val)
     {
         log.d("no request");
