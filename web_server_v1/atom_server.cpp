@@ -136,18 +136,18 @@ int main()
                 log.d("init a http_user");
             }
             else if(events[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR))
-                http_users[sockfd].close();
+                http_users[sockfd].close_connection();
             else if(events[i].events & EPOLLIN)//read events
             {
                 if(http_users[sockfd].read())
                     pool.append(&http_users[sockfd]);
                 else
-                    http_users[sockfd].close();
+                    http_users[sockfd].close_connection();
             }
             else if(events[i].events & EPOLLOUT)//write events
             {
                 if(!http_users[sockfd].write())
-                    http_users[sockfd].close();
+                    http_users[sockfd].close_connection();
             }
             else
                 continue;

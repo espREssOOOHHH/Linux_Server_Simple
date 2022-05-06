@@ -56,7 +56,7 @@ class Http_connect
 
         //methods
         void init(int sockfd, const sockaddr_in& addr);//init a new connection
-        void close(bool real_close=true);//close the connection
+        void close_connection(bool real_close=true);//close the connection
 
         void operator()();//functor
         bool read();//non-blocking read

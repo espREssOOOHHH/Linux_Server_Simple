@@ -50,7 +50,7 @@ void Http_connect::modfd(int epollfd,int fd,int event_)
 int Http_connect::num_user=0;
 int Http_connect::epollfd=-1;
 
-void Http_connect::close(bool real_close)
+void Http_connect::close_connection(bool real_close)
 {
     if(real_close and sock_fd!=-1)
     {
@@ -91,7 +91,6 @@ void Http_connect::init()
 
     read_buffer.resize(READ_BUFFER_SIZE,'\0');
     write_buffer.resize(WRITE_BUFFER_SIZE,'\0');
-    //filepath_buffer.resize(FILENAME_MAX,'\0');
 }
 
 Http_connect::LINE_STATUS Http_connect::parse_line()
@@ -265,7 +264,7 @@ Http_connect::HTTP_CODE Http_connect::do_request()
 
     int fd=open(temp.c_str(),O_RDONLY);
     file_location=(char*)mmap(nullptr,file_status.st_size,PROT_READ,MAP_PRIVATE,fd,0);
-    //close(fd);
+    close(fd);
 
     return FILE_REQUEST;
 }
@@ -301,7 +300,7 @@ void Http_connect::unmap()
     if(file_location)
     {
         munmap( file_location, file_status.st_size );
-        file_location = 0;
+        file_location = nullptr;
     }
 }
 
@@ -324,7 +323,7 @@ bool Http_connect::write()
         ret_val=writev(sock_fd,iv,iv_count);
         if(ret_val<=-1)//if TCP write buffer is full, wait for next EPOLLOUT event
         {
-            if(errno=EAGAIN)
+            if(errno==EAGAIN)
             {
                 modfd(epollfd,sock_fd,EPOLLOUT);
                 return true;
@@ -386,7 +385,10 @@ bool Http_connect::add_content_length(int length)
 
 bool Http_connect::add_keep_alive()
 {
-    return add_response("Connection: "+(keep_alive)?"keep-alive":"close");
+    if(keep_alive)
+        return add_response("Connection: keep-alive");
+    else
+        return add_response("Connection: close");
 }
 
 bool Http_connect::add_blank_line()
@@ -496,7 +498,7 @@ void Http_connect::operator()()
     if(!reply(return_val))
     {
         log.d("reply not success");
-        close();
+        close_connection();
     }
 
     log.d("reply success");
