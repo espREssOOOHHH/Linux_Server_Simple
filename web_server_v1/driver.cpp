@@ -17,6 +17,7 @@ std::uniform_real_distribution<double> u(0,3);
 
 void* functor(void* arg)
 {
+	Log& log=Log::Instance();
 	int rep=REPEAT_TIMES;
 	while(rep--)
 	{
@@ -24,6 +25,7 @@ void* functor(void* arg)
 		sem.wait();
 		std::cout<<"hello,my sequence is "<<1<<" and I will sleep @"<<sleep_time<<std::endl;
 		sem.signal();
+		log.i("1");
 		sleep(sleep_time);
 	}
 	pthread_exit(nullptr);
@@ -31,20 +33,23 @@ void* functor(void* arg)
 
 void* functor2(void* arg)
 {
+	Log& log=Log::Instance();
 	int rep=REPEAT_TIMES;
 	while(rep--)
 	{
 		double sleep_time=u(e);
 		sem.P();
 		std::cout<<"hi,this functor uses P & V __"<<2<<" and I will sleep @"<<sleep_time<<std::endl;
-		sem.V();
+		sem.V();		
+		log.d("2");
 		sleep(sleep_time);
 	}
 	pthread_exit(nullptr);
 }
 
 void* functor3(void* arg)
-{
+{	
+	Log& log=Log::Instance();
 	int rep=REPEAT_TIMES;
 	while(rep--)
 	{
@@ -52,6 +57,7 @@ void* functor3(void* arg)
 		sem--;
 		std::cout<<"你好,my seq is "<<3<<" and I will sleep @"<<sleep_time<<std::endl;
 		sem++;
+		log.e("3");
 		sleep(sleep_time);
 	}
 	pthread_exit(nullptr);
@@ -76,6 +82,7 @@ class func_class
 
 int main(int arg_counts, char** argv)
 {
+	Log& log=Log::Instance();
 	if(arg_counts==1 or argv[1][0]=='m')
 	{
 		Log& log=Log::Instance();

@@ -2,7 +2,7 @@
 ver ?=release
 
 ifeq ($(ver),debug)
-CXXFLAGS =-g -O0
+CXXFLAGS =-g -O0 -Wall
 else ifeq ($(ver),release)
 CXXFLAGS =-O3
 else
