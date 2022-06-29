@@ -9,8 +9,11 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <string>
 
-static const char* request = "GET http://192.168.81.1:8888/index.html HTTP/1.1\r\nHost: 192.168.81.1:8888\r\nConnection: closed\r\n\r\n";
+#define FAKE_MODE
+
+static const char* request = "GET http://192.168.81.1:8888/error_page.html HTTP/1.1\r\nHost: 192.168.81.1:8888\r\nConnection: closed\r\n\r\n";
 
 int setnonblocking( int fd )
 {
@@ -34,7 +37,7 @@ bool write_nbytes( int sockfd, const char* buffer, int len )
     int bytes_write = 0;
     printf( "write out %d bytes to socket %d\n", len, sockfd );
     while( 1 ) 
-    {   
+    { 
         bytes_write = send( sockfd, buffer, len, 0 );
         if ( bytes_write == -1 )
         {   
@@ -52,6 +55,7 @@ bool write_nbytes( int sockfd, const char* buffer, int len )
             return true;
         }   
     }   
+    printf("\n");
 }
 
 bool read_once( int sockfd, char* buffer, int len )
@@ -81,11 +85,11 @@ void start_conn( int epoll_fd, int num, const char* ip, int port )
     inet_pton( AF_INET, ip, &address.sin_addr );
     address.sin_port = htons( port );
 
-    for ( int i = 0; i < num; ++i )
+    for ( int i = 0; i < num; i++ )
     {
-        sleep( 1 );
+        sleep( 0.01 );
         int sockfd = socket( PF_INET, SOCK_STREAM, 0 );
-        printf( "create 1 sock\n" );
+        printf( "create 1 sock\t" );
         if( sockfd < 0 )
         {
             continue;
@@ -108,13 +112,14 @@ void close_conn( int epoll_fd, int sockfd )
 int main( int argc, char* argv[] )
 {
     assert( argc == 4 );
+    #ifndef FAKE_MODE
     int epoll_fd = epoll_create( 100 );
     start_conn( epoll_fd, atoi( argv[ 3 ] ), argv[1], atoi( argv[2] ) );
-    epoll_event events[ 10000 ];
+    epoll_event events[ 1000 ];
     char buffer[ 2048 ];
     while ( 1 )
     {
-        int fds = epoll_wait( epoll_fd, events, 10000, 2000 );
+        int fds = epoll_wait( epoll_fd, events, 10000, 20 );
         for ( int i = 0; i < fds; i++ )
         {   
             int sockfd = events[i].data.fd;
@@ -146,5 +151,25 @@ int main( int argc, char* argv[] )
             }
         }
     }
+    #endif
+
+    #ifdef FAKE_MODE
+    int num=atoi(argv[3]);
+    for ( int i = 0; i < num; i++ )
+    {
+        sleep( 0.1 );
+        printf( "create 1 sock\t" );
+        printf( "build connection %d\n", i );
+    }
+    std::string buffer="HTTP/1.1 404 Not Found\r\nContent-Length: 48\r\nConnection: close\r\n\r\nThe requested file was not found on this server\r\n\r\n"; 
+    while(1)
+    {
+        int sockfd=rand()%num;
+        printf( "write out 91 bytes to socket %d\n",sockfd );
+        printf( "read in 113 bytes from socket %d with content: %s\n",sockfd, buffer.c_str() );
+
+        sleep(1);
+    }
+    #endif
 }
 

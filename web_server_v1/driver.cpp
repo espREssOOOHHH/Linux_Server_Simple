@@ -7,6 +7,7 @@
 #include "mutex_lock.h"
 #include "threadpool.h"
 #include "log.h"
+#include "configer.h"
 
 Semaphore sem(0,1);
 //Mutex_locker sem;
@@ -82,6 +83,9 @@ class func_class
 
 int main(int arg_counts, char** argv)
 {
+	Configer &conf=Configer::Instance();
+	conf.load("server.conf");
+
 	Log& log=Log::Instance();
 	if(arg_counts==1 or argv[1][0]=='m')
 	{

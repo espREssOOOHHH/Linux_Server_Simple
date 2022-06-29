@@ -215,7 +215,7 @@ Http_connect::HTTP_CODE Http_connect::resolve()
         //or (line_status=parse_line())==LINE_OK )
         line_status==LINE_OK)
     {
-        log.i("got 1 http line");
+        log.d("got 1 http line");
         start_line_index=checked_index;
         line_status=parse_line();
         switch(status_MainStateMachine)
@@ -316,7 +316,7 @@ bool Http_connect::write()
 
     int ret_val;
     int bytes_to_be_send=write_size;
-    int bytes_already_send;
+    int bytes_already_send=0;
     
     while(1)
     {
@@ -386,9 +386,9 @@ bool Http_connect::add_content_length(int length)
 bool Http_connect::add_keep_alive()
 {
     if(keep_alive)
-        return add_response("Connection: keep-alive");
+        return add_response("Connection: keep-alive\r\n");
     else
-        return add_response("Connection: close");
+        return add_response("Connection: close\r\n");
 }
 
 bool Http_connect::add_blank_line()
@@ -470,7 +470,7 @@ bool Http_connect::reply(HTTP_CODE ret)
             {
                 log.d("web document not found");
                 add_headers(OK_200_FORM.length());
-                if(!add_content(OK_200_FORM));
+                if(!add_content(OK_200_FORM))
                     return false;
             }
         }

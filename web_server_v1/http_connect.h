@@ -67,6 +67,8 @@ class Http_connect
 
         void reply_internal_server_busy(int);//tell server cannot response
  
+        //friend class
+        friend class Configer;
 
     private:
         void init();//init a new connection, hidden interface

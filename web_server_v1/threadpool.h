@@ -21,7 +21,7 @@ class Threadpool
 
 		//thread_number is the number of thread in the pool
 		//max_requests is the max number of waiting requests.
-		Threadpool(int thread_number=8, int max_requests=16384);
+		Threadpool(int thread_number=8, long max_requests=16384);
 		~Threadpool();
 		//add task to the queue
 		bool append(Function* request);
@@ -32,7 +32,7 @@ class Threadpool
 		void run(); 
 		
 		int thread_number;//sum of thread in the pool
-		int max_requests;//max requests of queue
+		long max_requests;//max requests of queue
 		std::vector<pthread_t*> threads;//vector of threads
 		std::queue< Function* > work_queue;//requests queue
 		Mutex_locker queue_locker;//mutex lock protecting the queue
@@ -44,7 +44,7 @@ class Threadpool
 
 
 template<class Function>
-Threadpool<Function>::Threadpool(int thread_number_,int max_requests_):
+Threadpool<Function>::Threadpool(int thread_number_,long max_requests_):
 	thread_number(thread_number_),max_requests(max_requests_),stop(false)
 {
 	if(thread_number_<=0 or max_requests_<=0)
